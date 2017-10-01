@@ -1,6 +1,6 @@
 CC=gcc
-CFLAGS=-Wall -Werror -I/home/kol9karpec/gsl/include
-LDFLAGS=-L/home/kol9karpec/gsl/lib
+CFLAGS=-Wall -Werror -I/usr/include/gsl/include/
+LDFLAGS=-L/usr/include/gsl/lib/
 LDLIBS=-lgsl -lgslcblas -lm
 
 main: main.o
