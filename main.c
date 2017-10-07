@@ -50,22 +50,24 @@ int main (int argc, const char * argv[])
 	CHECK(in_file);
 	CHECK(!gsl_matrix_fscanf(in_file,A));
 
-	CHECK(!gsl_matrix_fprintf(stdout,A,"%f"));
+	gsl_vector * eigenvect = gsl_vector_alloc(n);
+	CHECK(eigenvect);
+	double eigenval = 0;
+	CHECK(!power_method(A,&eigenval,eigenvect,1));
 
+	printf("Eigenval: %lf\n",eigenval);
 	return 0;
 }
 
 int power_method(const gsl_matrix * matrix, double * res_val,
 		gsl_vector * res_vect, bool max) {
-	//TODO: Handle max
+	//TODO: Handle max/min eigenvalue
 	gsl_vector * ksi = gsl_vector_alloc(matrix->size2);
 	CHECK(ksi);
-	res_val = malloc(sizeof(double));
 	double mod_ksi = 0;
 	double mod_x = 0;
 	double lambda_old = 0;
 
-	res_vect = gsl_vector_alloc(matrix->size2);
 	CHECK(res_vect);
 	gsl_vector_set_all(res_vect,DEF_VALUE);
 	*res_val = 0; //if not working - better to do here first iteration
