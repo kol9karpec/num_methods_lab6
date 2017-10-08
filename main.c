@@ -28,7 +28,7 @@ int power_method(const gsl_matrix * matrix, double * res_val_max,
 		gsl_vector * res_vect_max);
 
 int power_method_min(const gsl_matrix * matrix, double * res_val_min,
-		gsl_vector * res_vect_min);
+		gsl_vector * res_vect_min, const double max_eigenval);
 
 /*
  * @argv[1] - M number
@@ -64,6 +64,7 @@ int main (int argc, const char * argv[])
 	printf("Eigenvect: \n");
 	gsl_vector_fprintf(stdout,max_eigenvect,"%f");
 
+	CHECK(!power_method_min(A,&min_eigenval, min_eigenvect, max_eigenval));
 	printf("Min eigenval: %lf\n",min_eigenval);
 	printf("Eigenvect: \n");
 	gsl_vector_fprintf(stdout,min_eigenvect,"%f");
@@ -140,12 +141,33 @@ int power_method(const gsl_matrix * matrix, double * res_val_max,
 }
 
 int power_method_min(const gsl_matrix * matrix, double * res_val_min,
-		gsl_vector * res_vect_min) {
+		gsl_vector * res_vect_min, const double max_eigenval) {
+	int i = 0;
 	CHECK(res_val_min);
 	CHECK(res_vect_min);
 
+	gsl_matrix * B = gsl_matrix_alloc(matrix->size1, matrix->size2);
+	CHECK(B);
+	CHECK(!gsl_matrix_memcpy(B,matrix));
 
+	gsl_matrix * E = gsl_matrix_alloc(matrix->size1, matrix->size2);
+	CHECK(E);
+	gsl_matrix_set_all(E,0);
+	for(i=0;i<matrix->size1;i++) {
+		gsl_matrix_set(E,i,i,1.0l);
+	}
 
+	CHECK(!gsl_matrix_scale(E,max_eigenval));
+	CHECK(!gsl_matrix_sub(B,E));
+
+	gsl_vector * B_max_eigenvect = gsl_vector_alloc(matrix->size2);
+	CHECK(B_max_eigenvect);
+	double B_max_eigenval = 0.0l;
+
+	CHECK(!power_method(B,&B_max_eigenval,B_max_eigenvect));
+	*res_val_min = max_eigenval + B_max_eigenval;
+
+	//TODO: Count appropriate eigenvector
 
 	return 0;
 }
