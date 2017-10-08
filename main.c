@@ -1,12 +1,11 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <math.h>
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_matrix.h>
 #include <gsl/gsl_blas.h>
 
-#define DEF_VALUE 10
+#define DEF_VALUE 0.5
 #define PRECISION 0.00001
 
 #define str(a) #a
