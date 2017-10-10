@@ -5,6 +5,7 @@
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_matrix.h>
 #include <gsl/gsl_blas.h>
+#include <gsl/gsl_linalg.h>
 
 #define DEF_VALUE 0.5
 #define PRECISION 0.00001
@@ -29,6 +30,10 @@ int power_method(const gsl_matrix * matrix, double * res_val_max,
 
 int power_method_min(const gsl_matrix * matrix, double * res_val_min,
 		gsl_vector * res_vect_min, const double max_eigenval);
+
+int LR_method(const gsl_matrix * matrix);
+
+void gsl_matrix_print(FILE * stream, gsl_matrix * A);
 
 /*
  * @argv[1] - M number
@@ -69,6 +74,8 @@ int main (int argc, const char * argv[])
 	printf("Eigenvect: \n");
 	gsl_vector_fprintf(stdout,min_eigenvect,"%f");
 
+	LR_method(A);
+
 	return 0;
 }
 
@@ -101,7 +108,7 @@ int power_method(const gsl_matrix * matrix, double * res_val_max,
 		CHECK(!gsl_vector_scale(ksi,(1 / mod_ksi)));
 		CHECK(!gsl_vector_memcpy(res_vect_max, ksi));
 
-		printf("Difference: %f\n",fabs(lambda_old - *res_val_max));
+		//printf("Difference: %f\n",fabs(lambda_old - *res_val_max));
 	} while(fabs(lambda_old - *res_val_max) >= PRECISION);
 
 	gsl_vector_free(ksi);
@@ -171,3 +178,28 @@ int power_method_min(const gsl_matrix * matrix, double * res_val_min,
 
 	return 0;
 }
+
+int LR_method(const gsl_matrix * matrix) {
+	gsl_matrix * A = gsl_matrix_alloc(matrix->size1, matrix->size2);
+	CHECK(A);
+	gsl_permutation * p = gsl_permutation_alloc(matrix->size1);
+	CHECK(p);
+	int signum = 0;
+
+	gsl_matrix_memcpy(A,matrix);
+	CHECK(!gsl_linalg_LU_decomp(A,p,&signum));
+
+	return 0;
+}
+
+void gsl_matrix_print(FILE * stream, gsl_matrix * A) {
+	int i,j;
+
+	for(i=0;i<A->size1;i++) {
+		for(j=0;j<A->size2;j++) {
+			fprintf(stream,"%0.6lf\t",gsl_matrix_get(A,i,j));
+		}
+		printf("\n");
+	}
+}
+
