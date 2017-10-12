@@ -35,6 +35,9 @@ int LR_method(const gsl_matrix * matrix);
 
 void gsl_matrix_print(FILE * stream, gsl_matrix * A);
 
+void iteration_printf(FILE * stream, gsl_matrix * A, gsl_matrix * L,
+		gsl_matrix * R, const uint32_t iteration_number);
+
 /*
  * @argv[1] - M number
  * @argv[2] - N number, where
@@ -196,36 +199,36 @@ int LR_method(const gsl_matrix * matrix) {
 	int i = 0, j = 0;
 
 	gsl_matrix_memcpy(A,matrix);
-	CHECK(!gsl_linalg_LU_decomp(A,p,&signum));
 
 	gsl_matrix * L = gsl_matrix_alloc(matrix->size1, matrix->size2);
 	gsl_matrix * R = gsl_matrix_alloc(matrix->size1, matrix->size2);
 	CHECK(L);
 	CHECK(R);
-	gsl_matrix_set_identity(L);
-	gsl_matrix_set_zero(R);
 
-	/* Copying matrix L*/
-	for(i=0;i<A->size1;i++) {
-		for(j=0;j<i;j++) {
-			gsl_matrix_set(L,i,j,gsl_matrix_get(A,i,j));
-		}
-	}
-
-	/* Copying matrix R*/
-	for(j=0;j<A->size1;j++) {
-		for(i=0;i<=j;i++) {
-			gsl_matrix_set(R,i,j,gsl_matrix_get(A,i,j));
-		}
-	}
-	printf("Iteration #%u\n",index);
-	printf("L: \n");
-	gsl_matrix_print(stdout,L);
-	printf("R: \n");
-	gsl_matrix_print(stdout,R);
-
+	gsl_matrix * A_old = gsl_matrix_alloc(matrix->size1, matrix->size2);
 	while (true) {
-		break;
+		gsl_matrix_memcpy(A_old,A);
+		CHECK(!gsl_linalg_LU_decomp(A,p,&signum));
+		gsl_matrix_set_identity(L);
+		gsl_matrix_set_zero(R);
+
+		/* Copying matrix L*/
+		for(i=0;i<A->size1;i++) {
+			for(j=0;j<i;j++) {
+				gsl_matrix_set(L,i,j,gsl_matrix_get(A,i,j));
+			}
+		}
+
+		/* Copying matrix R*/
+		for(j=0;j<A->size1;j++) {
+			for(i=0;i<=j;i++) {
+				gsl_matrix_set(R,i,j,gsl_matrix_get(A,i,j));
+			}
+		}
+		iteration_printf(stdout,A_old,L,R,++index);
+		gsl_blas_dgemm (CblasNoTrans, CblasNoTrans,1.0, R, L,0.0, A);
+		printf("-------------------------------------------------\n");
+		getchar();
 	}
 
 
@@ -245,3 +248,13 @@ void gsl_matrix_print(FILE * stream, gsl_matrix * A) {
 	}
 }
 
+void iteration_printf(FILE * stream, gsl_matrix * A, gsl_matrix * L,
+		gsl_matrix * R, const uint32_t iteration_number) {
+	fprintf(stream,"Iteration #%u\n",iteration_number);
+	fprintf(stream,"A: \n");
+	gsl_matrix_print(stdout,A);
+	fprintf(stream,"L: \n");
+	gsl_matrix_print(stdout,L);
+	fprintf(stream,"R: \n");
+	gsl_matrix_print(stdout,R);
+}
