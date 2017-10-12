@@ -38,6 +38,8 @@ void gsl_matrix_print(FILE * stream, gsl_matrix * A);
 void iteration_printf(FILE * stream, gsl_matrix * A, gsl_matrix * L,
 		gsl_matrix * R, const uint32_t iteration_number);
 
+double frobenius_norm(const gsl_matrix * matr);
+
 /*
  * @argv[1] - M number
  * @argv[2] - N number, where
@@ -180,8 +182,8 @@ int power_method_min(const gsl_matrix * matrix, double * res_val_min,
 
 	CHECK(!power_method(B,&B_max_eigenval,B_max_eigenvect));
 	*res_val_min = max_eigenval + B_max_eigenval;
+	gsl_vector_memcpy(res_vect_min,B_max_eigenvect);
 
-	//TODO: Count appropriate eigenvector
 	gsl_matrix_free(B);
 	gsl_matrix_free(E);
 	gsl_vector_free(B_max_eigenvect);
@@ -206,6 +208,9 @@ int LR_method(const gsl_matrix * matrix) {
 	CHECK(R);
 
 	gsl_matrix * A_old = gsl_matrix_alloc(matrix->size1, matrix->size2);
+	gsl_matrix * A_mult = gsl_matrix_alloc(matrix->size1, matrix->size2);
+	gsl_matrix_memcpy(A_mult,A);
+
 	while (true) {
 		gsl_matrix_memcpy(A_old,A);
 		CHECK(!gsl_linalg_LU_decomp(A,p,&signum));
@@ -227,12 +232,15 @@ int LR_method(const gsl_matrix * matrix) {
 		}
 		iteration_printf(stdout,A_old,L,R,++index);
 		gsl_blas_dgemm (CblasNoTrans, CblasNoTrans,1.0, R, L,0.0, A);
-		printf("-------------------------------------------------\n");
 		getchar();
 	}
 
-
-
+	gsl_matrix_free(A);
+	gsl_permutation_free(p);
+	gsl_matrix_free(L);
+	gsl_matrix_free(R);
+	gsl_matrix_free(A_old);
+	gsl_matrix_free(A_mult);
 
 	return 0;
 }
@@ -252,9 +260,24 @@ void iteration_printf(FILE * stream, gsl_matrix * A, gsl_matrix * L,
 		gsl_matrix * R, const uint32_t iteration_number) {
 	fprintf(stream,"Iteration #%u\n",iteration_number);
 	fprintf(stream,"A: \n");
+	fprintf(stream,"Frobenius norm: %0.6lf\n",frobenius_norm(A));
 	gsl_matrix_print(stdout,A);
 	fprintf(stream,"L: \n");
 	gsl_matrix_print(stdout,L);
 	fprintf(stream,"R: \n");
 	gsl_matrix_print(stdout,R);
+	fprintf(stream,"-------------------------------------------------\n");
+}
+
+double frobenius_norm(const gsl_matrix * matr) {
+	uint32_t i=0,j=0;
+	double sum = 0;
+
+	for(i=0;i<matr->size1;i++) {
+		for(j=0;j<matr->size2;j++) {
+			sum += gsl_matrix_get(matr,i,j);
+		}
+	}
+
+	return sqrt(sum);
 }
