@@ -217,9 +217,9 @@ int LR_method(FILE * stream, const gsl_matrix * matrix, gsl_vector * eigenvals,
 	CHECK(R);
 
 	gsl_matrix * A_old = gsl_matrix_alloc(matrix->size1, matrix->size2);
-	gsl_matrix * A_mult = gsl_matrix_alloc(matrix->size1, matrix->size2);
-	gsl_matrix * A_buf = gsl_matrix_alloc(matrix->size1, matrix->size2);
-	gsl_matrix_memcpy(A_mult,A);
+	gsl_matrix * L_mult = gsl_matrix_alloc(matrix->size1, matrix->size2);
+	gsl_matrix * L_buf = gsl_matrix_alloc(matrix->size1, matrix->size2);
+	gsl_matrix_set_identity(L_mult);
 
 	while (true) {
 		gsl_matrix_memcpy(A_old,A);
@@ -243,8 +243,10 @@ int LR_method(FILE * stream, const gsl_matrix * matrix, gsl_vector * eigenvals,
 		iteration_printf(stream,A_old,L,R,++index);
 
 		gsl_blas_dgemm (CblasNoTrans, CblasNoTrans,1.0, R, L,0.0, A);
-		gsl_blas_dgemm (CblasNoTrans, CblasNoTrans,1.0, A_mult, A,0.0, A_buf);
-		gsl_matrix_memcpy(A_mult,A_buf);
+		gsl_blas_dgemm (CblasNoTrans, CblasNoTrans,1.0, L_mult, L,0.0, L_buf);
+		gsl_matrix_memcpy(L_mult,L_buf);
+		fprintf(stream,"L_mult:\n");
+		gsl_matrix_print(stream,L_mult);
 		getchar();
 	}
 
@@ -253,7 +255,8 @@ int LR_method(FILE * stream, const gsl_matrix * matrix, gsl_vector * eigenvals,
 	gsl_matrix_free(L);
 	gsl_matrix_free(R);
 	gsl_matrix_free(A_old);
-	gsl_matrix_free(A_mult);
+	gsl_matrix_free(L_mult);
+	gsl_matrix_free(L_buf);
 
 	return 0;
 }
