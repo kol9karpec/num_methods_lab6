@@ -73,6 +73,7 @@ int main (int argc, const char * argv[])
 	printf("Min eigenval: %lf\n",min_eigenval);
 	printf("Eigenvect: \n");
 	gsl_vector_fprintf(stdout,min_eigenvect,"%f");
+	printf("\n");
 
 	LR_method(A);
 
@@ -149,7 +150,7 @@ int power_method(const gsl_matrix * matrix, double * res_val_max,
 
 int power_method_min(const gsl_matrix * matrix, double * res_val_min,
 		gsl_vector * res_vect_min, const double max_eigenval) {
-	int i = 0;
+	//int i = 0;
 	CHECK(res_val_min);
 	CHECK(res_vect_min);
 
@@ -159,10 +160,13 @@ int power_method_min(const gsl_matrix * matrix, double * res_val_min,
 
 	gsl_matrix * E = gsl_matrix_alloc(matrix->size1, matrix->size2);
 	CHECK(E);
+	gsl_matrix_set_identity(E);
+	/*
 	gsl_matrix_set_all(E,0);
 	for(i=0;i<matrix->size1;i++) {
 		gsl_matrix_set(E,i,i,1.0l);
 	}
+	*/
 
 	CHECK(!gsl_matrix_scale(E,max_eigenval));
 	CHECK(!gsl_matrix_sub(B,E));
@@ -175,6 +179,9 @@ int power_method_min(const gsl_matrix * matrix, double * res_val_min,
 	*res_val_min = max_eigenval + B_max_eigenval;
 
 	//TODO: Count appropriate eigenvector
+	gsl_matrix_free(B);
+	gsl_matrix_free(E);
+	gsl_vector_free(B_max_eigenvect);
 
 	return 0;
 }
@@ -185,9 +192,44 @@ int LR_method(const gsl_matrix * matrix) {
 	gsl_permutation * p = gsl_permutation_alloc(matrix->size1);
 	CHECK(p);
 	int signum = 0;
+	uint32_t index = 0;
+	int i = 0, j = 0;
 
 	gsl_matrix_memcpy(A,matrix);
 	CHECK(!gsl_linalg_LU_decomp(A,p,&signum));
+
+	gsl_matrix * L = gsl_matrix_alloc(matrix->size1, matrix->size2);
+	gsl_matrix * R = gsl_matrix_alloc(matrix->size1, matrix->size2);
+	CHECK(L);
+	CHECK(R);
+	gsl_matrix_set_identity(L);
+	gsl_matrix_set_zero(R);
+
+	/* Copying matrix L*/
+	for(i=0;i<A->size1;i++) {
+		for(j=0;j<i;j++) {
+			gsl_matrix_set(L,i,j,gsl_matrix_get(A,i,j));
+		}
+	}
+
+	/* Copying matrix R*/
+	for(j=0;j<A->size1;j++) {
+		for(i=0;i<=j;i++) {
+			gsl_matrix_set(R,i,j,gsl_matrix_get(A,i,j));
+		}
+	}
+	printf("Iteration #%u\n",index);
+	printf("L: \n");
+	gsl_matrix_print(stdout,L);
+	printf("R: \n");
+	gsl_matrix_print(stdout,R);
+
+	while (true) {
+		break;
+	}
+
+
+
 
 	return 0;
 }
