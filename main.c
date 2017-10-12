@@ -9,6 +9,8 @@
 
 #define DEF_VALUE 0.5
 #define PRECISION 0.00001
+#define DEF_OUTPUT stdout
+#define CUR_OUTPUT DEF_OUTPUT
 
 #define str(a) #a
 #define CHECK(a) \
@@ -31,7 +33,8 @@ int power_method(const gsl_matrix * matrix, double * res_val_max,
 int power_method_min(const gsl_matrix * matrix, double * res_val_min,
 		gsl_vector * res_vect_min, const double max_eigenval);
 
-int LR_method(const gsl_matrix * matrix);
+int LR_method(FILE * stream, const gsl_matrix * matrix, gsl_vector * eigenvals,
+		gsl_matrix * eigenvectors);
 
 void gsl_matrix_print(FILE * stream, gsl_matrix * A);
 
@@ -70,17 +73,22 @@ int main (int argc, const char * argv[])
 	double min_eigenval = 0;
 	CHECK(!power_method(A,&max_eigenval,max_eigenvect));
 
-	printf("Max eigenval: %lf\n",max_eigenval);
-	printf("Eigenvect: \n");
-	gsl_vector_fprintf(stdout,max_eigenvect,"%f");
+	fprintf(CUR_OUTPUT,"Max eigenval: %lf\n",max_eigenval);
+	fprintf(CUR_OUTPUT,"Eigenvect: \n");
+	gsl_vector_fprintf(CUR_OUTPUT,max_eigenvect,"%f");
 
 	CHECK(!power_method_min(A,&min_eigenval, min_eigenvect, max_eigenval));
-	printf("Min eigenval: %lf\n",min_eigenval);
-	printf("Eigenvect: \n");
-	gsl_vector_fprintf(stdout,min_eigenvect,"%f");
-	printf("\n");
+	fprintf(CUR_OUTPUT,"Min eigenval: %lf\n",min_eigenval);
+	fprintf(CUR_OUTPUT,"Eigenvect: \n");
+	gsl_vector_fprintf(CUR_OUTPUT,min_eigenvect,"%f");
+	fprintf(CUR_OUTPUT,"\n");
 
-	LR_method(A);
+	LR_method(CUR_OUTPUT,A,NULL,NULL);
+
+	fclose(in_file);
+	gsl_matrix_free(A);
+	gsl_vector_free(max_eigenvect);
+	gsl_vector_free(min_eigenvect);
 
 	return 0;
 }
@@ -191,7 +199,8 @@ int power_method_min(const gsl_matrix * matrix, double * res_val_min,
 	return 0;
 }
 
-int LR_method(const gsl_matrix * matrix) {
+int LR_method(FILE * stream, const gsl_matrix * matrix, gsl_vector * eigenvals,
+		gsl_matrix * eigenvectors) {
 	gsl_matrix * A = gsl_matrix_alloc(matrix->size1, matrix->size2);
 	CHECK(A);
 	gsl_permutation * p = gsl_permutation_alloc(matrix->size1);
@@ -209,6 +218,7 @@ int LR_method(const gsl_matrix * matrix) {
 
 	gsl_matrix * A_old = gsl_matrix_alloc(matrix->size1, matrix->size2);
 	gsl_matrix * A_mult = gsl_matrix_alloc(matrix->size1, matrix->size2);
+	gsl_matrix * A_buf = gsl_matrix_alloc(matrix->size1, matrix->size2);
 	gsl_matrix_memcpy(A_mult,A);
 
 	while (true) {
@@ -230,8 +240,11 @@ int LR_method(const gsl_matrix * matrix) {
 				gsl_matrix_set(R,i,j,gsl_matrix_get(A,i,j));
 			}
 		}
-		iteration_printf(stdout,A_old,L,R,++index);
+		iteration_printf(stream,A_old,L,R,++index);
+
 		gsl_blas_dgemm (CblasNoTrans, CblasNoTrans,1.0, R, L,0.0, A);
+		gsl_blas_dgemm (CblasNoTrans, CblasNoTrans,1.0, A_mult, A,0.0, A_buf);
+		gsl_matrix_memcpy(A_mult,A_buf);
 		getchar();
 	}
 
@@ -278,6 +291,6 @@ double frobenius_norm(const gsl_matrix * matr) {
 			sum += gsl_matrix_get(matr,i,j);
 		}
 	}
-
+	
 	return sqrt(sum);
 }
