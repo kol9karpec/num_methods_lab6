@@ -38,7 +38,9 @@ int power_method_min(const gsl_matrix * matrix, double * res_val_min,
 int LR_method(FILE * stream, const gsl_matrix * matrix, gsl_vector * eigenvals,
 		gsl_matrix * eigenvectors);
 
-void gsl_matrix_print(FILE * stream, gsl_matrix * A);
+void gsl_matrix_print(FILE * stream, gsl_matrix * a);
+
+void gsl_vector_print(FILE * stream, gsl_vector * v);
 
 void iteration_printf(FILE * stream, gsl_matrix * A, gsl_matrix * L,
 		gsl_matrix * R, const uint32_t iteration_number);
@@ -46,6 +48,9 @@ void iteration_printf(FILE * stream, gsl_matrix * A, gsl_matrix * L,
 double frobenius_norm(const gsl_matrix * matr);
 
 int find_eigenvects_triang_matr(const gsl_matrix * A, gsl_matrix * eigenvects_dest);
+
+int diff_vect(const gsl_matrix * A, const gsl_vector * eigenvals,
+		const gsl_matrix * eigenvects, gsl_matrix * res);
 
 /*
  * Returns false if |aij-bij| > eps
@@ -83,6 +88,8 @@ int main (int argc, const char * argv[])
 	double min_eigenval = 0;
 	CHECK(!power_method(A,&max_eigenval,max_eigenvect));
 
+	fprintf(CUR_OUTPUT,"----------Power method---------\n");
+
 	fprintf(CUR_OUTPUT,"Max eigenval: %lf\n",max_eigenval);
 	fprintf(CUR_OUTPUT,"Eigenvect: \n");
 	gsl_vector_fprintf(CUR_OUTPUT,max_eigenvect,"%f");
@@ -93,12 +100,29 @@ int main (int argc, const char * argv[])
 	gsl_vector_fprintf(CUR_OUTPUT,min_eigenvect,"%f");
 	fprintf(CUR_OUTPUT,"\n");
 
-	LR_method(CUR_OUTPUT,A,NULL,NULL);
+	gsl_vector * eigenvals = gsl_vector_alloc(n);
+	gsl_matrix * eigenvects = gsl_matrix_alloc(n,n);
+
+	fprintf(CUR_OUTPUT,"----------LR method---------\n");
+	LR_method(CUR_OUTPUT,A,eigenvals,eigenvects);
+
+	fprintf(CUR_OUTPUT,"\nSolution:\n\tEigenvavules\n");
+	gsl_vector_print(CUR_OUTPUT,eigenvals);
+	fprintf(CUR_OUTPUT,"\n\tAppropriate eigenvectors:\n");
+	gsl_matrix_print(CUR_OUTPUT,eigenvects);
+
+	gsl_matrix * diff_vects = gsl_matrix_alloc(n,n);
+	diff_vect(A,eigenvals,eigenvects,diff_vects);
+	fprintf(CUR_OUTPUT,"\tAppropriate |Av-lv|:\n");
+	gsl_matrix_print(CUR_OUTPUT,diff_vects);
 
 	fclose(in_file);
 	gsl_matrix_free(A);
 	gsl_vector_free(max_eigenvect);
 	gsl_vector_free(min_eigenvect);
+	gsl_vector_free(eigenvals);
+	gsl_matrix_free(eigenvects);
+	gsl_matrix_free(diff_vects);
 
 	return 0;
 }
@@ -256,19 +280,18 @@ int LR_method(FILE * stream, const gsl_matrix * matrix, gsl_vector * eigenvals,
 		gsl_blas_dgemm (CblasNoTrans, CblasNoTrans,1.0, R, L,0.0, A);
 		gsl_blas_dgemm (CblasNoTrans, CblasNoTrans,1.0, L_mult, L,0.0, L_buf);
 		gsl_matrix_memcpy(L_mult,L_buf);
-		fprintf(stream,"L_mult:\n");
-		gsl_matrix_print(stream,L_mult);
 	}
 
-	fprintf(stream,"A after diagonalization:\n");
-	gsl_matrix_print(stream, A);
+	/* Returning eigenvalues*/
+	for(i=0;i<A->size1;i++)
+		gsl_vector_set(eigenvals,i,gsl_matrix_get(A,i,i));
 
 	/* Computing eigenvectors of diagonalized A*/
 	gsl_matrix * eigenvects_A_diag = gsl_matrix_alloc(A->size1, A->size2);
 	CHECK(!find_eigenvects_triang_matr(A, eigenvects_A_diag));
 
-	fprintf(stream,"Eigenvectors of A diagonalised:\n");
-	gsl_matrix_print(stream, eigenvects_A_diag);
+	gsl_blas_dgemm (CblasNoTrans, CblasNoTrans,1.0, L_mult, eigenvects_A_diag,
+			0.0, eigenvectors);
 
 	gsl_matrix_free(A);
 	gsl_permutation_free(p);
@@ -277,6 +300,7 @@ int LR_method(FILE * stream, const gsl_matrix * matrix, gsl_vector * eigenvals,
 	gsl_matrix_free(A_old);
 	gsl_matrix_free(L_mult);
 	gsl_matrix_free(L_buf);
+	gsl_matrix_free(eigenvects_A_diag);
 
 	return 0;
 }
@@ -331,7 +355,7 @@ int find_eigenvects_triang_matr(const gsl_matrix * A, gsl_matrix * eigenvects_de
 		   sum = 0.l;
 	for(i=0;i<A->size1;i++) {
 		for(j=i+1;j<A->size2;j++)
-			gsl_matrix_set(eigenvects_dest, i, j, 0.l);
+			gsl_matrix_set(eigenvects_dest, j, i, 0.l);
 
 		gsl_matrix_set(eigenvects_dest, i, i, 1.l);
 
@@ -339,14 +363,14 @@ int find_eigenvects_triang_matr(const gsl_matrix * A, gsl_matrix * eigenvects_de
 			sum = 0.l;
 			for(k=j+1;k<=i;k++) {
 				a_1 = gsl_matrix_get(A,j,k);
-				u_1 = gsl_matrix_get(eigenvects_dest,i,k);
+				u_1 = gsl_matrix_get(eigenvects_dest,k,i);
 				sum += a_1*u_1;
 			}
 
 			a_2 = gsl_matrix_get(A,i,i);
 			a_3 = gsl_matrix_get(A,j,j);
 
-			gsl_matrix_set(eigenvects_dest,i,j,sum/(a_2-a_3));
+			gsl_matrix_set(eigenvects_dest,j,i,(sum/(a_2-a_3)));
 		}
 	}
 
@@ -363,4 +387,33 @@ bool check_diff_mm(const gsl_matrix * A, const gsl_matrix * B,
 				return false;
 
 	return true;
+}
+
+void gsl_vector_print(FILE * stream, gsl_vector * v) {
+	 int i = 0;
+	 
+	 for(;i<v->size;i++)
+		 fprintf(stream,"%0.6lf\t",gsl_vector_get(v,i));
+}
+
+int diff_vect(const gsl_matrix * A, const gsl_vector * eigenvals,
+		const gsl_matrix * eigenvects, gsl_matrix * res) {
+	int i = 0, j = 0;
+	gsl_vector * a_scaled = gsl_vector_alloc(A->size1);
+	gsl_vector * v = gsl_vector_alloc(A->size1);
+
+	for(;i<eigenvals->size;i++) {
+		gsl_matrix_get_col(v,eigenvects,i);
+		gsl_blas_dgemv(CblasNoTrans, 1.0, A, v, 0.0, a_scaled);
+
+		gsl_vector_scale(v,gsl_vector_get(eigenvals,i));
+
+		gsl_vector_sub(a_scaled,v);
+		for(j=0;j<a_scaled->size;j++)
+			if(gsl_vector_get(a_scaled,j) < 0)
+				gsl_vector_set(a_scaled,j,(-1)*gsl_vector_get(a_scaled,j));
+		gsl_matrix_set_col(res,i,a_scaled);
+	}
+
+	return 0;
 }
